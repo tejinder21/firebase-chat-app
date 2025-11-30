@@ -1,4 +1,4 @@
-
+// app/(tabs)/chat.js
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   addDoc,
@@ -18,8 +18,9 @@ import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, View } from 'reac
 import { Button, List, Text, TextInput } from 'react-native-paper';
 
 import { auth, db } from '../../firebaseConfig';
+import { runSlashCommand } from '../../services/chatCommands'; // ⬅ uusi import
 
-// Apufunktiot
+// ---------- Apufunktiot ----------
 
 // Yksi pysyvä chatId kahdelle käyttäjälle
 const getChatId = (a, b) => [a, b].sort().join('_');
@@ -139,14 +140,22 @@ export default function ChatScreen() {
     });
   }, [chatId, hasActiveChat, currentUid]);
 
-  // 4) Lähetä viesti
+  // 4) Lähetä viesti (+ slash-komennot runSlashCommandin kautta)
   const sendMessage = async () => {
     if (!hasActiveChat || !chatId || !currentUid || !otherUid) return;
 
     const trimmed = text.trim();
     if (!trimmed) return;
 
+    let messageText = trimmed;
+
     try {
+      // jos viesti alkaa slash-komennolla, annetaan service-kerroksen käsitellä se
+      const slashResult = await runSlashCommand(trimmed);
+      if (slashResult) {
+        messageText = slashResult;
+      }
+
       const now = serverTimestamp();
       const chatRef = doc(db, 'chats', chatId);
       const otherDisplayName = otherName || otherUid;
@@ -162,7 +171,7 @@ export default function ChatScreen() {
             [otherUid]: { displayName: otherDisplayName },
           },
           lastMessage: {
-            text: trimmed,
+            text: messageText,
             from: currentUid,
             to: otherUid,
             createdAt: now,
@@ -176,9 +185,9 @@ export default function ChatScreen() {
         [`unread.${otherUid}`]: increment(1),
       });
 
-      // Lisää viesti messages-ala­kokoelmaan
+      // Lisää viesti messages-alakokoelmaan
       await addDoc(collection(db, 'chats', chatId, 'messages'), {
-        text: trimmed,
+        text: messageText,
         from: currentUid,
         to: otherUid,
         createdAt: now,
@@ -389,7 +398,7 @@ function ConversationView({
   );
 }
 
-// ---------- Tyylit ----------
+// Tyylit 
 
 const styles = StyleSheet.create({
   flex: {
