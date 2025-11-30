@@ -14,11 +14,17 @@ import {
   where,
 } from 'firebase/firestore';
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import {
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { Button, List, Text, TextInput } from 'react-native-paper';
 
 import { auth, db } from '../../firebaseConfig';
-import { runSlashCommand } from '../../services/chatCommands'; // ⬅ uusi import
+import { runSlashCommand } from '../../services/chatCommands';
 
 // ---------- Apufunktiot ----------
 
@@ -55,6 +61,18 @@ const formatDate = (ts, mode) => {
   return d.toLocaleDateString();
 };
 
+const formatLastSeen = (presence) => {
+  if (!presence) return '';
+
+  const { online, lastSeen } = presence;
+
+  if (online) return 'Online';
+  if (!lastSeen) return '';
+
+  const d = toDate(lastSeen);
+  return `Last seen ${d.toLocaleString()}`;
+};
+
 // ---------- Pääkomponentti ----------
 
 export default function ChatScreen() {
@@ -66,6 +84,7 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const [recentChats, setRecentChats] = useState([]);
+  const [otherPresence, setOtherPresence] = useState(null);
 
   const hasActiveChat = !!(currentUid && otherUid);
   const chatId = hasActiveChat ? getChatId(currentUid, otherUid) : null;
@@ -73,6 +92,26 @@ export default function ChatScreen() {
   const otherLabel = otherName || otherUid || 'User';
   const currentLabel =
     auth.currentUser?.displayName || auth.currentUser?.email || 'You';
+
+  // 0) Kuuntele toisen käyttäjän online / lastSeen -tila
+  useEffect(() => {
+    if (!otherUid) return;
+
+    const ref = doc(db, 'users', otherUid);
+    const unsubscribe = onSnapshot(ref, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setOtherPresence({
+          online: data.online,
+          lastSeen: data.lastSeen,
+        });
+      } else {
+        setOtherPresence(null);
+      }
+    });
+
+    return unsubscribe;
+  }, [otherUid]);
 
   // 1) Kuuntele viestit aktiivisesta chatista
   useEffect(() => {
@@ -150,7 +189,7 @@ export default function ChatScreen() {
     let messageText = trimmed;
 
     try {
-      // jos viesti alkaa slash-komennolla, annetaan service-kerroksen käsitellä se
+      // anna service-kerroksen käsitellä mahdollinen slash-komento
       const slashResult = await runSlashCommand(trimmed);
       if (slashResult) {
         messageText = slashResult;
@@ -249,6 +288,7 @@ export default function ChatScreen() {
   return (
     <ConversationView
       otherLabel={otherLabel}
+      otherPresence={otherPresence}
       chatItems={chatItems}
       text={text}
       setText={setText}
@@ -315,6 +355,7 @@ function RecentChatsView({ recentChats, onOpenChat }) {
 
 function ConversationView({
   otherLabel,
+  otherPresence,
   chatItems,
   text,
   setText,
@@ -367,7 +408,16 @@ function ConversationView({
       keyboardVerticalOffset={80}
     >
       <View style={styles.conversationContainer}>
-        <Text style={styles.conversationTitle}>Chat with {otherLabel}</Text>
+        <View style={{ alignItems: 'center', marginBottom: 8 }}>
+          <Text style={styles.conversationTitle}>
+            Chat with {otherLabel}
+          </Text>
+          {otherPresence && (
+            <Text style={styles.presenceText}>
+              {formatLastSeen(otherPresence)}
+            </Text>
+          )}
+        </View>
 
         <FlatList
           style={styles.flex}
@@ -398,7 +448,7 @@ function ConversationView({
   );
 }
 
-// Tyylit 
+// ---------- Tyylit ----------
 
 const styles = StyleSheet.create({
   flex: {
@@ -473,8 +523,12 @@ const styles = StyleSheet.create({
   conversationTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 8,
     textAlign: 'center',
+  },
+  presenceText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
   messageContainer: {
     marginVertical: 4,

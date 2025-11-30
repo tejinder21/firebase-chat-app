@@ -1,22 +1,32 @@
-
+// app/_layout.js
 import { Stack, useRouter } from 'expo-router';
 import { onAuthStateChanged } from 'firebase/auth';
+import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { useEffect } from 'react';
 import { Provider as PaperProvider } from 'react-native-paper';
 
-import { auth } from '../firebaseConfig';
+import { auth, db } from '../firebaseConfig';
 
 export default function RootLayout() {
   const router = useRouter();
 
   useEffect(() => {
-    // Kuuntele kirjautumistilaa ja ohjaa käyttäjä oikeaan näkymään
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // Kirjautunut → suoraan appin tabs-puolelle
+        // Merkitään käyttäjä online-tilaan ja päivitetään lastSeen
+        try {
+          await updateDoc(doc(db, 'users', user.uid), {
+            online: true,
+            lastSeen: serverTimestamp(),
+          });
+        } catch (e) {
+          console.warn('Failed to update presence:', e);
+        }
+
+        // Kirjautunut → tabs/ chat
         router.replace('/(tabs)/chat');
       } else {
-        // Ei kirjautunut → login-näkymä
+        // Ei kirjautunut → login
         router.replace('/');
       }
     });
@@ -27,11 +37,8 @@ export default function RootLayout() {
   return (
     <PaperProvider>
       <Stack>
-        {/* Julkiset näkymät */}
         <Stack.Screen name="index"  options={{ title: 'Sign In' }} />
         <Stack.Screen name="signUp" options={{ title: 'Sign Up' }} />
-
-        {/* Kirjautunut alue (tabs) */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
     </PaperProvider>
