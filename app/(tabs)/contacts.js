@@ -2,8 +2,9 @@
 import { useRouter } from 'expo-router';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { Avatar, List, Text, TextInput } from 'react-native-paper';
+
 import { auth, db } from '../../firebaseConfig';
 
 export default function ContactsScreen() {
@@ -11,32 +12,36 @@ export default function ContactsScreen() {
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
 
-  // Hae kaikki muut käyttäjät
+  // Hae kaikki muut käyttäjät Firestoresta
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'users'), (snapshot) => {
+    const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
       const currentUid = auth.currentUser?.uid;
 
-      const others = snapshot.docs
+      const otherUsers = snapshot.docs
         .filter((doc) => doc.id !== currentUid)
-        .map((doc) => ({ id: doc.id, ...doc.data() }));
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
 
-      setUsers(others);
+      setUsers(otherUsers);
     });
 
-    return unsub;
+    return unsubscribe;
   }, []);
 
-  // Suodata hakusanan mukaan
-  const filteredUsers = users.filter((u) => {
+  // Suodata käyttäjiä hakukentän perusteella
+  const filteredUsers = users.filter((user) => {
     if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    const name = (u.displayName || '').toLowerCase();
-    const email = (u.email || '').toLowerCase();
-    return name.includes(q) || email.includes(q);
+
+    const query = search.toLowerCase().trim();
+    const name = (user.displayName || '').toLowerCase();
+    const email = (user.email || '').toLowerCase();
+
+    return name.includes(query) || email.includes(query);
   });
 
   const renderItem = ({ item }) => {
-    // ✅ Valitaan ensin järkevä lähde alkukirjaimelle
     const nameSource =
       item.displayName && item.displayName.trim().length > 0
         ? item.displayName.trim()
@@ -46,18 +51,14 @@ export default function ContactsScreen() {
 
     return (
       <List.Item
-        style={{
-          backgroundColor: '#ffffff',
-          marginBottom: 8,
-          borderRadius: 16,
-        }}
+        style={styles.listItem}
         title={item.displayName || 'User'}
         description={item.email}
         left={() => (
           <Avatar.Text
             size={44}
             label={initial}
-            style={{ backgroundColor: '#180fc4ff' }}
+            style={styles.avatar}
           />
         )}
         onPress={() =>
@@ -74,41 +75,26 @@ export default function ContactsScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0f172a', padding: 16 }}>
-      {/* Yksi selkeä otsikko kuten login/profiili */}
-      <Text
-        style={{
-          color: 'white',
-          fontSize: 22,
-          fontWeight: '700',
-          textAlign: 'center',
-          marginTop: 8,
-          marginBottom: 4,
-        }}
-      >
+    <View style={styles.container}>
+      <Text style={styles.title}>
         Start a chat with your friends
       </Text>
 
-      {/* Hakukenttä suoraan tummalla taustalla */}
       <TextInput
         mode="outlined"
         placeholder="Search by name or email"
         value={search}
         onChangeText={setSearch}
         left={<TextInput.Icon icon="magnify" />}
-        style={{
-          marginTop: 16,
-          marginBottom: 12,
-          backgroundColor: '#ffffff',
-        }}
+        style={styles.searchInput}
       />
 
       {filteredUsers.length === 0 ? (
-        <View style={{ alignItems: 'center', marginTop: 24 }}>
+        <View style={styles.emptyState}>
           {users.length === 0 ? (
-            <Text style={{ color: 'white' }}>No other users yet.</Text>
+            <Text style={styles.emptyText}>No other users yet.</Text>
           ) : (
-            <Text style={{ color: 'white' }}>No matches for your search.</Text>
+            <Text style={styles.emptyText}>No matches for your search.</Text>
           )}
         </View>
       ) : (
@@ -116,9 +102,49 @@ export default function ContactsScreen() {
           data={filteredUsers}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          contentContainerStyle={{ paddingTop: 4, paddingBottom: 8 }}
+          contentContainerStyle={styles.listContent}
         />
       )}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0f172a',
+    padding: 16,
+  },
+  title: {
+    color: 'white',
+    fontSize: 22,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  searchInput: {
+    marginTop: 16,
+    marginBottom: 12,
+    backgroundColor: '#ffffff',
+  },
+  emptyState: {
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  emptyText: {
+    color: 'white',
+  },
+  listContent: {
+    paddingTop: 4,
+    paddingBottom: 8,
+  },
+  listItem: {
+    backgroundColor: '#ffffff',
+    marginBottom: 8,
+    borderRadius: 16,
+  },
+  avatar: {
+    backgroundColor: '#180fc4ff',
+  },
+});

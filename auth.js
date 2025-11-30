@@ -24,6 +24,7 @@ export async function signUp(email, password, displayName) {
     uid: cred.user.uid,
     email: cred.user.email,
     displayName: displayName || '',
+    status: '',
     createdAt: serverTimestamp(),
   });
 

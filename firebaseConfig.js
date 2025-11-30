@@ -1,12 +1,12 @@
 // firebaseConfig.js
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { initializeApp } from 'firebase/app';
+import { getApp, getApps, initializeApp } from 'firebase/app';
 import {
   getAuth,
   getReactNativePersistence,
   initializeAuth,
 } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore'; // 👈 TÄMÄ LISÄTTY
+import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -18,23 +18,27 @@ const firebaseConfig = {
   appId: '1:619356778803:web:ebeb6d4719d0ca7ae98e46',
 };
 
-const app = initializeApp(firebaseConfig);
+// Varmistetaan, ettei initializeAppia kutsuta moneen kertaan (esim. hot reload)
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-// Firestore-instanssi — tätä käytetään contactsissa, chatissa jne.
+// Firestore — käytetään kontakteissa, chatissa jne.
 export const db = getFirestore(app);
 
-// Auth-instanssi React Native -persistenssillä
+// Auth React Native -persistenssillä
 let authInstance;
+
 try {
   authInstance = initializeAuth(app, {
     persistence: getReactNativePersistence(AsyncStorage),
   });
 } catch {
-  // esim. hot reloadin aikana, jos auth on jo alustettu
+  // Esim. hot reload: auth on jo alustettu → käytetään olemassa olevaa instanssia
   authInstance = getAuth(app);
 }
-export const storage = getStorage(app); 
 
 export const auth = authInstance;
+
+// Storage (jos haluat myöhemmin kuvia tms.)
+export const storage = getStorage(app);
 
 export default app;

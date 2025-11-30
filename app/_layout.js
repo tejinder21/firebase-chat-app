@@ -1,31 +1,37 @@
-// app/_layout.js
+
 import { Stack, useRouter } from 'expo-router';
+import { onAuthStateChanged } from 'firebase/auth';
 import { useEffect } from 'react';
 import { Provider as PaperProvider } from 'react-native-paper';
-import { onAuthStateChanged } from 'firebase/auth';
+
 import { auth } from '../firebaseConfig';
 
 export default function RootLayout() {
   const router = useRouter();
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
+    // Kuuntele kirjautumistilaa ja ohjaa käyttäjä oikeaan näkymään
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        router.replace('/(tabs)/chat'); // signed-in → tabs
+        // Kirjautunut → suoraan appin tabs-puolelle
+        router.replace('/(tabs)/chat');
       } else {
-        router.replace('/');            // signed-out → login
+        // Ei kirjautunut → login-näkymä
+        router.replace('/');
       }
     });
-    return unsub;
-  }, []);
+
+    return unsubscribe;
+  }, [router]);
 
   return (
     <PaperProvider>
       <Stack>
-        {/* Public routes */}
+        {/* Julkiset näkymät */}
         <Stack.Screen name="index"  options={{ title: 'Sign In' }} />
         <Stack.Screen name="signUp" options={{ title: 'Sign Up' }} />
-        {/* Private area (tabs) */}
+
+        {/* Kirjautunut alue (tabs) */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
     </PaperProvider>

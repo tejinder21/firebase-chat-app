@@ -2,35 +2,51 @@
 import { useRouter } from 'expo-router';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
+
 import { signUp } from '../auth';
 import { auth, db } from '../firebaseConfig';
 
 export default function SignUp() {
   const router = useRouter();
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const handleGoToLogin = () => {
+    router.push('/');
+  };
+
   const handleSignUp = async () => {
     setError('');
+
     if (!email || !password) {
-      return setError('Email and password are required.');
+      setError('Email and password are required.');
+      return;
     }
+
     if (password !== confirm) {
-      return setError('Passwords do not match.');
+      setError('Passwords do not match.');
+      return;
     }
 
     setLoading(true);
-    try {
-      // luo käyttäjä Firebase Authiin
-      const user = await signUp(email.trim(), password, name.trim() || undefined);
 
-      // talleta käyttäjä myös Firestoreen contacts-listaa varten
+    try {
+      // Luo käyttäjä Firebase Authiin
+      const user = await signUp(
+        email.trim(),
+        password,
+        name.trim() || undefined
+      );
+
+      // Talleta käyttäjä myös Firestoreen contacts-listaa varten
       if (user?.uid) {
         await setDoc(doc(db, 'users', user.uid), {
           uid: user.uid,
@@ -40,8 +56,7 @@ export default function SignUp() {
         });
       }
 
-      // _layout hoitaa automaattisen redirectin,
-      // mutta varmuuden vuoksi:
+      // _layout hoitaa muutenkin redirectin, mutta varmistetaan
       if (auth.currentUser) {
         router.replace('/(tabs)/chat');
       }
@@ -54,37 +69,19 @@ export default function SignUp() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#0f172a' }}
+      style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View
-        style={{
-          flex: 1,
-          justifyContent: 'center',
-          padding: 24,
-        }}
-      >
-        <View
-          style={{
-            backgroundColor: 'white',
-            borderRadius: 24,
-            padding: 24,
-          }}
-        >
+      <View style={styles.content}>
+        <View style={styles.card}>
           <Text
             variant="headlineMedium"
-            style={{ textAlign: 'center', fontWeight: '700', marginBottom: 8 }}
+            style={styles.title}
           >
             Create account
           </Text>
 
-          <Text
-            style={{
-              textAlign: 'center',
-              color: '#555',
-              marginBottom: 16,
-            }}
-          >
+          <Text style={styles.subtitle}>
             Sign up to start chatting
           </Text>
 
@@ -93,8 +90,9 @@ export default function SignUp() {
             label="Name (optional)"
             value={name}
             onChangeText={setName}
-            style={{ marginBottom: 8 }}
+            style={styles.input}
           />
+
           <TextInput
             mode="outlined"
             label="Email"
@@ -102,16 +100,18 @@ export default function SignUp() {
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
-            style={{ marginBottom: 8 }}
+            style={styles.input}
           />
+
           <TextInput
             mode="outlined"
             label="Password"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            style={{ marginBottom: 8 }}
+            style={styles.input}
           />
+
           <TextInput
             mode="outlined"
             label="Confirm password"
@@ -121,13 +121,7 @@ export default function SignUp() {
           />
 
           {!!error && (
-            <Text
-              style={{
-                color: 'red',
-                textAlign: 'center',
-                marginTop: 8,
-              }}
-            >
+            <Text style={styles.errorText}>
               {error}
             </Text>
           )}
@@ -137,25 +131,18 @@ export default function SignUp() {
             loading={loading}
             disabled={loading}
             onPress={handleSignUp}
-            style={{ marginTop: 16, borderRadius: 24 }}
+            style={styles.signUpButton}
             buttonColor="#180fc4ff"
           >
             Sign Up
           </Button>
 
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'center',
-              marginTop: 12,
-              gap: 4,
-            }}
-          >
+          <View style={styles.footerRow}>
             <Text>Already have an account?</Text>
             <Button
               compact
               mode="text"
-              onPress={() => router.push('/')}
+              onPress={handleGoToLogin}
               textColor="#180fc4ff"
             >
               Sign In
@@ -166,3 +153,48 @@ export default function SignUp() {
     </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#0f172a',
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  card: {
+    backgroundColor: 'white',
+    borderRadius: 24,
+    padding: 24,
+  },
+  title: {
+    textAlign: 'center',
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  subtitle: {
+    textAlign: 'center',
+    color: '#555',
+    marginBottom: 16,
+  },
+  input: {
+    marginBottom: 8,
+  },
+  errorText: {
+    color: 'red',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  signUpButton: {
+    marginTop: 16,
+    borderRadius: 24,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 12,
+    gap: 4,
+  },
+});

@@ -1,20 +1,25 @@
 // app/index.js
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
+
 import { signIn } from '../auth';
 
 export default function Login() {
   const router = useRouter();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const canSubmit = !!email && !!password && !loading;
+
   const handleLogin = async () => {
     setError('');
     setLoading(true);
+
     try {
       await signIn(email.trim(), password);
       router.replace('/(tabs)/chat');
@@ -25,54 +30,33 @@ export default function Login() {
     }
   };
 
-  const canSubmit = !!email && !!password && !loading;
+  const handleGuest = () => {
+    router.push('/(tabs)/chat');
+  };
+
+  const handleGoToSignUp = () => {
+    router.push('/signUp');
+  };
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#0f172a' }} // 🌙 yönsininen
+      style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={{ flex: 1, paddingHorizontal: 24, justifyContent: 'center' }}>
-
-        {/* Yläteksti */}
-        <View style={{ marginBottom: 24 }}>
-          <Text
-            variant="headlineMedium"
-            style={{
-              color: 'white',
-              fontWeight: '700',
-              textAlign: 'center',
-            }}
-          >
+      <View style={styles.content}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text variant="headlineMedium" style={styles.title}>
             Welcome back 👋
           </Text>
 
-          <Text
-            variant="bodyMedium"
-            style={{
-              color: '#cbd5f5',      // vaalea sininen
-              textAlign: 'center',
-              marginTop: 4,
-            }}
-          >
+          <Text variant="bodyMedium" style={styles.subtitle}>
             Log in to continue chatting
           </Text>
         </View>
 
-        {/* Kortti */}
-        <View
-          style={{
-            backgroundColor: 'white',
-            borderRadius: 20,
-            padding: 20,
-            gap: 12,
-            shadowColor: '#000',
-            shadowOpacity: 0.12,
-            shadowRadius: 8,
-            shadowOffset: { width: 0, height: 4 },
-            elevation: 4,
-          }}
-        >
+        {/* Login card */}
+        <View style={styles.card}>
           <TextInput
             mode="outlined"
             label="Email"
@@ -91,7 +75,7 @@ export default function Login() {
           />
 
           {!!error && (
-            <Text style={{ color: 'red', textAlign: 'center' }}>
+            <Text style={styles.errorText}>
               {error}
             </Text>
           )}
@@ -101,15 +85,15 @@ export default function Login() {
             loading={loading}
             disabled={!canSubmit}
             onPress={handleLogin}
-            style={{ borderRadius: 24, marginTop: 4 }}
-            buttonColor="#180fc4ff"   // 💜 pääsävy (avatar-väri)
+            style={styles.loginButton}
+            buttonColor="#180fc4ff"
           >
             Log In
           </Button>
 
           <Button
             mode="text"
-            onPress={() => router.push('/(tabs)/chat')}
+            onPress={handleGuest}
             textColor="#180fc4ff"
           >
             Continue as guest
@@ -117,25 +101,17 @@ export default function Login() {
         </View>
 
         {/* Footer */}
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginTop: 16,
-            gap: 6,
-          }}
-        >
-          <Text style={{ color: 'white' }}>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
             Don't have an account?
           </Text>
 
           <Button
             compact
             mode="text"
-            onPress={() => router.push('/signUp')}
-            textColor="#93c5fd"        // 💙 vaaleampi sininen
-            contentStyle={{ paddingVertical: 0 }}
+            onPress={handleGoToSignUp}
+            textColor="#93c5fd"
+            contentStyle={styles.footerButtonContent}
           >
             Sign Up
           </Button>
@@ -144,3 +120,60 @@ export default function Login() {
     </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#0f172a', // tumma sininen tausta
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    justifyContent: 'center',
+  },
+  header: {
+    marginBottom: 24,
+  },
+  title: {
+    color: 'white',
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  subtitle: {
+    color: '#cbd5f5',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  card: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 20,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  errorText: {
+    color: 'red',
+    textAlign: 'center',
+  },
+  loginButton: {
+    borderRadius: 24,
+    marginTop: 4,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 16,
+    gap: 6,
+  },
+  footerText: {
+    color: 'white',
+  },
+  footerButtonContent: {
+    paddingVertical: 0,
+  },
+});
